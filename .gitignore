@@ -56,4 +56,20 @@ backend/prisma/migrations/dev.db*
 
 # Temporary files
 *.tmp
+<<<<<<< HEAD
 *.temp
+=======
+*.temp
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Security keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+>>>>>>> 9f50f2c (Remove security key files and update .gitignore)
