@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String      @id @default(uuid())
+  email       String      @unique
+  password    String
+  mustUpdate  Boolean     @default(true) @map("must_update")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  shortUrls   ShortUrl[]
+  
+  @@map("users")
+}
+
+model ShortUrl {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  destination String
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [createdBy], references: [id])
+  clicks      Click[]
+  
+  @@map("short_urls")
+}
+
+model Click {
+  id          String    @id @default(uuid())
+  shortUrlId  String    @map("short_url_id")
+  clickedAt   DateTime  @default(now()) @map("clicked_at")
+  ipHash      String    @map("ip_hash")
+  referrer    String?
+  shortUrl    ShortUrl  @relation(fields: [shortUrlId], references: [id], onDelete: Cascade)
+  
+  @@map("clicks")
+}
