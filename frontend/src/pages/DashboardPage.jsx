@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { urlApi } from '../services/api';
+import ThemeToggle from '../components/ThemeToggle';
 import { 
   Plus, 
   Link as LinkIcon, 
@@ -13,11 +15,14 @@ import {
   LogOut,
   Loader2,
   CheckCircle,
-  AlertCircle 
+  AlertCircle,
+  Users,
+  Settings 
 } from 'lucide-react';
 
 const DashboardPage = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const [urls, setUrls] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,10 +126,10 @@ const DashboardPage = () => {
   // Show loading while user data is being loaded
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-          <p className="text-gray-600">Loading user data...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading user data...</p>
         </div>
       </div>
     );
@@ -137,20 +142,30 @@ const DashboardPage = () => {
   // Show loading while fetching URLs
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <header className="bg-white shadow-sm">
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center">
-                <LinkIcon className="w-8 h-8 text-blue-600 mr-3" />
-                <h1 className="text-2xl font-bold text-gray-900">URL Shortener</h1>
+                <LinkIcon className="w-8 h-8 text-blue-600 dark:text-blue-400 mr-3" />
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">URL Shortener</h1>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-500">Welcome, {user?.email}</span>
+                {user?.role === 'SUPER_ADMIN' && (
+                  <RouterLink
+                    to="/users"
+                    className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+                  >
+                    <Users className="w-4 h-4 mr-1" />
+                    Users
+                  </RouterLink>
+                )}
+                <ThemeToggle />
+                <span className="text-sm text-gray-500 dark:text-gray-400">Welcome, {user?.email}</span>
                 <button
                   onClick={logout}
-                  className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+                  className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
                 >
                   <LogOut className="w-4 h-4 mr-1" />
                   Logout
@@ -162,7 +177,7 @@ const DashboardPage = () => {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600">Loading your URLs...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading your URLs...</p>
           </div>
         </div>
       </div>
@@ -170,20 +185,30 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
-              <LinkIcon className="w-8 h-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">URL Shortener</h1>
+              <LinkIcon className="w-8 h-8 text-blue-600 dark:text-blue-400 mr-3" />
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">URL Shortener</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">Welcome, {user?.email}</span>
+              {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                <RouterLink
+                  to="/users"
+                  className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  User Management
+                </RouterLink>
+              )}
+              <ThemeToggle />
+              <span className="text-sm text-gray-500 dark:text-gray-400">Welcome, {user?.email}</span>
               <button
                 onClick={logout}
-                className="flex items-center text-sm text-gray-700 hover:text-gray-900"
+                className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <LogOut className="w-4 h-4 mr-1" />
                 Logout
@@ -197,7 +222,9 @@ const DashboardPage = () => {
       {notification && (
         <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4`}>
           <div className={`flex items-center p-4 rounded-md ${
-            notification.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            notification.type === 'success' 
+              ? 'bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-300' 
+              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300'
           }`}>
             {notification.type === 'success' ? (
               <CheckCircle className="w-5 h-5 mr-2" />
@@ -213,12 +240,12 @@ const DashboardPage = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Create URL Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Create Short URL</h2>
+              <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Create Short URL</h2>
               <button
                 onClick={() => setShowCreateForm(!showCreateForm)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New URL
@@ -228,7 +255,7 @@ const DashboardPage = () => {
             {showCreateForm && (
               <form onSubmit={handleCreateUrl} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Destination URL
                   </label>
                   <input
@@ -237,11 +264,11 @@ const DashboardPage = () => {
                     value={formData.destination}
                     onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value }))}
                     placeholder="https://example.com/very/long/url"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Custom Slug (optional)
                   </label>
                   <input
@@ -249,9 +276,9 @@ const DashboardPage = () => {
                     value={formData.customSlug}
                     onChange={(e) => setFormData(prev => ({ ...prev, customSlug: e.target.value }))}
                     placeholder="my-custom-slug"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     Leave empty to auto-generate a slug
                   </p>
                 </div>
@@ -267,7 +294,7 @@ const DashboardPage = () => {
                   <button
                     type="button"
                     onClick={() => setShowCreateForm(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
                   >
                     Cancel
                   </button>
@@ -278,18 +305,18 @@ const DashboardPage = () => {
         </div>
 
         {/* URLs List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Your Short URLs</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Your Short URLs</h2>
           </div>
           
           {urls.length === 0 ? (
             <div className="text-center py-12">
-              <LinkIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No short URLs created yet</p>
+              <LinkIcon className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-gray-400">No short URLs created yet</p>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="mt-4 text-blue-600 hover:text-blue-700"
+                className="mt-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
               >
                 Create your first short URL
               </button>
@@ -297,17 +324,17 @@ const DashboardPage = () => {
           ) : (
             <div className="overflow-hidden">
               {urls.map((url) => (
-                <div key={url.id} className="border-b border-gray-200 last:border-b-0">
+                <div key={url.id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                   <div className="px-6 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center">
-                          <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                          <code className="text-sm font-mono bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded">
                             {url.shortUrl}
                           </code>
                           <button
                             onClick={() => handleCopyUrl(url.shortUrl)}
-                            className="ml-2 text-gray-400 hover:text-gray-600"
+                            className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                           >
                             <Copy className="w-4 h-4" />
                           </button>
@@ -315,7 +342,7 @@ const DashboardPage = () => {
                             href={url.shortUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-2 text-gray-400 hover:text-gray-600"
+                            className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
@@ -333,23 +360,23 @@ const DashboardPage = () => {
                                     setEditingUrl(null);
                                   }
                                 }}
-                                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 autoFocus
                               />
                               <button
                                 onClick={() => setEditingUrl(null)}
-                                className="ml-2 text-gray-400 hover:text-gray-600"
+                                className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                               >
                                 Cancel
                               </button>
                             </div>
                           ) : (
-                            <p className="text-sm text-gray-600 truncate">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                               → {url.destination}
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center mt-2 text-xs text-gray-500">
+                        <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
                           <span>{url.clickCount} clicks</span>
                           <span className="mx-2">•</span>
                           <span>Created {new Date(url.createdAt).toLocaleDateString()}</span>
@@ -358,19 +385,19 @@ const DashboardPage = () => {
                       <div className="flex items-center space-x-2">
                         <RouterLink
                           to={`/analytics/${url.id}`}
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                         >
                           <BarChart3 className="w-4 h-4" />
                         </RouterLink>
                         <button
                           onClick={() => setEditingUrl(url.id)}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteUrl(url.id)}
-                          className="text-red-400 hover:text-red-600"
+                          className="text-red-400 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

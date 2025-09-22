@@ -26,15 +26,20 @@ async function main() {
   const adminUser = await prisma.user.create({
     data: {
       email: defaultEmail,
+      name: 'Super Administrator',
       password: hashedPassword,
-      mustUpdate: true
+      role: 'SUPER_ADMIN',
+      mustUpdate: false, // Super admin can use legacy login initially
+      isActive: true
     }
   });
 
-  console.log(`✅ Created default admin user:`);
+  console.log(`✅ Created super admin user:`);
   console.log(`   Email: ${adminUser.email}`);
+  console.log(`   Name: ${adminUser.name}`);
+  console.log(`   Role: ${adminUser.role}`);
   console.log(`   Password: ${defaultPassword}`);
-  console.log(`   Must update password on first login: ${adminUser.mustUpdate}`);
+  console.log(`   Must update password: ${adminUser.mustUpdate}`);
   console.log('🌱 Database seeding completed successfully!');
 }
 

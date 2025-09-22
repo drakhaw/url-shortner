@@ -10,17 +10,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN  
+  USER
+}
+
 model User {
-  id          String      @id @default(uuid())
-  email       String      @unique
-  password    String
-  mustUpdate  Boolean     @default(true) @map("must_update")
-  createdAt   DateTime    @default(now()) @map("created_at")
+  id          String   @id @default(cuid())
+  email       String   @unique
+  googleId    String?  @unique @map("google_id")
+  name        String?
+  avatar      String?
+  role        UserRole @default(USER)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  lastLoginAt DateTime? @map("last_login_at")
+  
+  // Legacy password field (will be nullable for OAuth users)
+  password    String?
+  mustUpdate  Boolean  @default(false) @map("must_update")
+  
   shortUrls   ShortUrl[]
   
   @@map("users")
 }
-
 model ShortUrl {
   id          String    @id @default(uuid())
   slug        String    @unique

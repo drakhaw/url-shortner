@@ -49,7 +49,36 @@ async function checkMustUpdate(req, res, next) {
   }
 }
 
+// Role-based access control middleware
+const requireRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    const prisma = req.app.get('prisma');
+    
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.userId },
+        select: { id: true, role: true, isActive: true }
+      });
+
+      if (!user || !user.isActive) {
+        return res.status(403).json({ error: 'Account is inactive' });
+      }
+
+      if (!allowedRoles.includes(user.role)) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+
+      req.user.role = user.role;
+      next();
+    } catch (error) {
+      console.error('Role check error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  };
+};
+
 module.exports = {
   authenticateToken,
-  checkMustUpdate
+  checkMustUpdate,
+  requireRole
 };

@@ -5,15 +5,15 @@ services:
     container_name: urlshortener-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: urlshortener
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-urlshortener}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,22 +26,23 @@ services:
     container_name: urlshortener-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:password@postgres:5432/urlshortener?schema=public
-      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-urlshortener}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this-in-production}
       PORT: 4000
-      NODE_ENV: production
-      FRONTEND_URL: http://localhost:3000
-      DEFAULT_ADMIN_EMAIL: admin@example.com
-      DEFAULT_ADMIN_PASSWORD: admin123
+      NODE_ENV: ${NODE_ENV:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DEFAULT_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      DEFAULT_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     ports:
-      - "4000:4000"
+      - "${BACKEND_PORT:-4000}:4000"
     depends_on:
       postgres:
         condition: service_healthy
     command: >
       sh -c "
-        npx prisma db push &&
-        npm run db:seed &&
         npm start
       "
     healthcheck:
@@ -49,18 +50,21 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      # Labels for reverse proxy auto-discovery
+      - "traefik.enable=true"
+      - "traefik.http.routers.urlshortener-api.rule=Host(`${DOMAIN_NAME:-localhost}`) && PathPrefix(`/api`)"
+      - "traefik.http.services.urlshortener-api.loadbalancer.server.port=4000"
 
   # Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://localhost:4000
     container_name: urlshortener-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
       backend:
         condition: service_healthy
@@ -69,6 +73,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      # Labels for reverse proxy auto-discovery
+      - "traefik.enable=true"
+      - "traefik.http.routers.urlshortener-frontend.rule=Host(`${DOMAIN_NAME:-localhost}`)"
+      - "traefik.http.services.urlshortener-frontend.loadbalancer.server.port=3000"
 
 volumes:
   postgres_data:

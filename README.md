@@ -4,10 +4,11 @@ A comprehensive URL shortening web application with a CMS dashboard and detailed
 
 ## Features
 
-### 🔐 Authentication
-- Secure admin-only access with JWT-based authentication
-- Default admin account with forced password change on first login
-- Email and password management
+### 🔐 Modern Authentication
+- **Google OAuth SSO**: Secure sign-in with Google accounts
+- **Multi-user support**: Super admin can invite users by email
+- **Role-based access**: SUPER_ADMIN, ADMIN, and USER roles
+- **Invitation-only system**: No self-registration, secure by default
 
 ### 🔗 URL Shortening
 - Create short URLs with custom slugs or auto-generated ones
@@ -23,6 +24,7 @@ A comprehensive URL shortening web application with a CMS dashboard and detailed
 - Export-ready data visualization
 
 ### 🎨 Modern UI/UX
+- **Dark theme support**: Automatic system theme detection + manual toggle
 - Clean, responsive design built with Tailwind CSS
 - Real-time notifications and feedback
 - Mobile-friendly interface
@@ -58,11 +60,17 @@ A comprehensive URL shortening web application with a CMS dashboard and detailed
    - Backend API: http://localhost:4000
    - Database: localhost:5432
 
-4. **Default Login Credentials**
+4. **Authentication Setup**
+   
+   **For Google OAuth (Recommended):**
+   - Follow the setup guide: `GOOGLE_OAUTH_SETUP.md`
+   - Run: `./setup-oauth.sh` to configure OAuth credentials
+   - Users must be invited by super admin to access
+   
+   **Legacy Super Admin Access:**
    - Email: `admin@example.com`
    - Password: `admin123`
-
-   **⚠️ Important:** You'll be forced to change these credentials on first login.
+   - Use this only for initial setup and user management
 
 ### That's it! 🚀
 
@@ -139,12 +147,19 @@ DATABASE_URL="postgresql://postgres:password@localhost:5432/urlshortener?schema=
 # JWT Secret (Change in production!)
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 
+# Session Secret (for OAuth)
+SESSION_SECRET="your-session-secret-change-this-in-production"
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
+
 # Server Configuration
 PORT=4000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
-# Default Admin Account
+# Default Admin Account (Legacy)
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=admin123
 ```

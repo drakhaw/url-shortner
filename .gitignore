@@ -72,4 +72,12 @@ backend/prisma/migrations/dev.db*
 *.crt
 *.p12
 *.pfx
+<<<<<<< HEAD
 >>>>>>> 9f50f2c (Remove security key files and update .gitignore)
+=======
+
+# Environment files with secrets
+*.env.backup
+.env.prod
+.env.local
+>>>>>>> 3556d36 (feat: Add complete dark theme support and Google OAuth integration)
