@@ -336,6 +336,8 @@ const DashboardPage = () => {
                           <button
                             onClick={() => handleCopyUrl(url.shortUrl)}
                             className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                            aria-label="Copy short URL to clipboard"
+                            title="Copy short URL to clipboard"
                           >
                             <Copy className="w-4 h-4" />
                           </button>
@@ -344,6 +346,8 @@ const DashboardPage = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                            aria-label="Visit short URL in new tab"
+                            title="Visit short URL in new tab"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
@@ -410,6 +414,7 @@ const DashboardPage = () => {
                               onClick={() => setEditingUrl(url.id)}
                               className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                               title="Edit URL"
+                              aria-label="Edit URL destination"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -417,6 +422,7 @@ const DashboardPage = () => {
                               onClick={() => handleDeleteUrl(url.id)}
                               className="text-red-400 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
                               title="Delete URL"
+                              aria-label="Delete URL permanently"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
