@@ -51,8 +51,35 @@ const initialState = getInitialState();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Initial state is already handled in getInitialState()
-  // No need for additional useEffect
+  // Check if we have a token but no user data (e.g., from OAuth callback)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (token && !user && !state.loading) {
+      // We have a token but no user data, try to fetch it
+      const fetchUserData = async () => {
+        try {
+          dispatch({ type: 'LOADING' });
+          const response = await authApi.getMe();
+          const userData = response.data.user;
+          
+          localStorage.setItem('user', JSON.stringify(userData));
+          dispatch({
+            type: 'LOGIN_SUCCESS',
+            payload: { token, user: userData },
+          });
+        } catch (error) {
+          console.error('Failed to fetch user data:', error);
+          // Invalid token, clear it
+          localStorage.removeItem('token');
+          dispatch({ type: 'LOGOUT' });
+        }
+      };
+      
+      fetchUserData();
+    }
+  }, [state.loading]);
 
   const login = async (email, password) => {
     try {
@@ -108,12 +135,23 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const setAuthData = (token, user) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    dispatch({
+      type: 'LOGIN_SUCCESS',
+      payload: { token, user },
+    });
+  };
+
   const value = {
     ...state,
     login,
     changePassword,
     logout,
     clearError,
+    setAuthData,
   };
 
   return (

@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Crown,
   Key,
-  ArrowLeft
+  ArrowLeft,
+  Trash2
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -114,6 +115,37 @@ const UserManagement = () => {
       }
     } catch (error) {
       console.error('Error updating user status:', error);
+      showNotification(error.message, 'error');
+    }
+  };
+
+  const handleDeleteUser = async (userId, userEmail) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${userEmail}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/auth/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        showNotification(data.message, 'success');
+      } else {
+        const error = await response.json();
+        if (error.hasUrls) {
+          showNotification(`Cannot delete user: ${error.error}`, 'error');
+        } else {
+          throw new Error(error.error || 'Failed to delete user');
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
       showNotification(error.message, 'error');
     }
   };
@@ -379,16 +411,27 @@ const UserManagement = () => {
                           )}
                         </span>
                         {u.id !== user.id && u.role !== 'SUPER_ADMIN' && (
-                          <button
-                            onClick={() => handleToggleUserStatus(u.id)}
-                            className={`text-sm px-3 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              u.isActive
-                                ? 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900'
-                                : 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900'
-                            }`}
-                          >
-                            {u.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleToggleUserStatus(u.id)}
+                              className={`text-sm px-3 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                u.isActive
+                                  ? 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900'
+                                  : 'border-green-300 dark:border-green-600 text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900'
+                              }`}
+                            >
+                              {u.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            {(u._count?.shortUrls === 0 || !u._count) && (
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.email)}
+                                className="ml-2 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                title="Delete User"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

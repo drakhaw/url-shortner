@@ -17,7 +17,8 @@ import {
   CheckCircle,
   AlertCircle,
   Users,
-  Settings 
+  Settings,
+  User
 } from 'lucide-react';
 
 const DashboardPage = () => {
@@ -177,7 +178,7 @@ const DashboardPage = () => {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-            <p className="text-gray-600 dark:text-gray-400">Loading your URLs...</p>
+            <p className="text-gray-600 dark:text-gray-400">Loading URLs...</p>
           </div>
         </div>
       </div>
@@ -307,18 +308,18 @@ const DashboardPage = () => {
         {/* URLs List */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Your Short URLs</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">All Short URLs</h2>
           </div>
           
           {urls.length === 0 ? (
             <div className="text-center py-12">
               <LinkIcon className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">No short URLs created yet</p>
+              <p className="text-gray-500 dark:text-gray-400">No short URLs found</p>
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="mt-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
               >
-                Create your first short URL
+                Create the first short URL
               </button>
             </div>
           ) : (
@@ -380,27 +381,47 @@ const DashboardPage = () => {
                           <span>{url.clickCount} clicks</span>
                           <span className="mx-2">•</span>
                           <span>Created {new Date(url.createdAt).toLocaleDateString()}</span>
+                          <span className="mx-2">•</span>
+                          <div className="flex items-center">
+                            {url.creator?.avatar ? (
+                              <img
+                                src={url.creator.avatar}
+                                alt={url.creator.name || url.creator.email}
+                                className="w-4 h-4 rounded-full mr-1"
+                              />
+                            ) : (
+                              <User className="w-3 h-3 mr-1" />
+                            )}
+                            <span>by {url.creator?.name || url.creator?.email || 'Unknown'}</span>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RouterLink
                           to={`/analytics/${url.id}`}
                           className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                          title="View Analytics"
                         >
                           <BarChart3 className="w-4 h-4" />
                         </RouterLink>
-                        <button
-                          onClick={() => setEditingUrl(url.id)}
-                          className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUrl(url.id)}
-                          className="text-red-400 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {(url.creator?.id === user?.id || ['SUPER_ADMIN', 'ADMIN'].includes(user?.role)) && (
+                          <>
+                            <button
+                              onClick={() => setEditingUrl(url.id)}
+                              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                              title="Edit URL"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUrl(url.id)}
+                              className="text-red-400 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                              title="Delete URL"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
