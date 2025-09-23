@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Users, 
@@ -16,7 +16,8 @@ import {
   CheckCircle,
   AlertCircle,
   Crown,
-  Key
+  Key,
+  ArrowLeft
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 
@@ -169,6 +170,13 @@ const UserManagement = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
+              <RouterLink
+                to="/dashboard"
+                className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mr-4"
+              >
+                <ArrowLeft className="w-5 h-5 mr-1" />
+                Back
+              </RouterLink>
               <Users className="w-8 h-8 text-blue-600 dark:text-blue-400 mr-3" />
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">User Management</h1>
             </div>
