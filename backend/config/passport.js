@@ -11,6 +11,8 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
+      const email = profile.emails[0]?.value;
+      
       // Check if user exists with this Google ID
       let user = await prisma.user.findUnique({
         where: { googleId: profile.id }
@@ -27,7 +29,7 @@ passport.use(new GoogleStrategy({
 
       // Check if user exists with this email
       const existingUser = await prisma.user.findUnique({
-        where: { email: profile.emails[0]?.value }
+        where: { email: email }
       });
 
       if (existingUser) {

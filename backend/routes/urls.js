@@ -87,13 +87,37 @@ router.post('/', async (req, res) => {
       }
     });
 
+    // Fetch the created URL with creator information
+    const urlWithCreator = await prisma.shortUrl.findUnique({
+      where: { id: shortUrl.id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatar: true
+          }
+        },
+        _count: {
+          select: { clicks: true }
+        }
+      }
+    });
+
     res.status(201).json({
-      id: shortUrl.id,
-      slug: shortUrl.slug,
-      destination: shortUrl.destination,
-      createdAt: shortUrl.createdAt,
-      clickCount: shortUrl._count.clicks,
-      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${shortUrl.slug}`
+      id: urlWithCreator.id,
+      slug: urlWithCreator.slug,
+      destination: urlWithCreator.destination,
+      createdAt: urlWithCreator.createdAt,
+      clickCount: urlWithCreator._count.clicks,
+      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${urlWithCreator.slug}`,
+      creator: {
+        id: urlWithCreator.user.id,
+        email: urlWithCreator.user.email,
+        name: urlWithCreator.user.name,
+        avatar: urlWithCreator.user.avatar
+      }
     });
   } catch (error) {
     console.error('Create URL error:', error);
@@ -114,8 +138,15 @@ router.get('/', async (req, res) => {
   try {
     const [urls, totalCount] = await Promise.all([
       prisma.shortUrl.findMany({
-        where: { createdBy: req.user.userId },
         include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              avatar: true
+            }
+          },
           _count: {
             select: { clicks: true }
           },
@@ -129,9 +160,7 @@ router.get('/', async (req, res) => {
         skip,
         take: limit
       }),
-      prisma.shortUrl.count({
-        where: { createdBy: req.user.userId }
-      })
+      prisma.shortUrl.count()
     ]);
 
     const formattedUrls = urls.map(url => ({
@@ -141,7 +170,13 @@ router.get('/', async (req, res) => {
       createdAt: url.createdAt,
       clickCount: url._count.clicks,
       lastClickAt: url.clicks[0]?.clickedAt || null,
-      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${url.slug}`
+      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${url.slug}`,
+      creator: {
+        id: url.user.id,
+        email: url.user.email,
+        name: url.user.name,
+        avatar: url.user.avatar
+      }
     }));
 
     res.json({
@@ -168,10 +203,9 @@ router.get('/:id', async (req, res) => {
   const prisma = req.app.get('prisma');
 
   try {
-    const url = await prisma.shortUrl.findFirst({
+    const url = await prisma.shortUrl.findUnique({
       where: {
-        id,
-        createdBy: req.user.userId
+        id
       },
       include: {
         _count: {
@@ -256,21 +290,32 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid destination URL format' });
     }
 
-    // Update URL
-    const updatedUrl = await prisma.shortUrl.updateMany({
-      where: {
-        id,
-        createdBy: req.user.userId
-      },
-      data: { destination }
+    // Check if URL exists and if user has permission to edit it
+    const url = await prisma.shortUrl.findUnique({
+      where: { id },
+      include: { user: true }
     });
 
-    if (updatedUrl.count === 0) {
+    if (!url) {
       return res.status(404).json({ error: 'URL not found' });
     }
 
-    // Fetch updated URL with analytics
-    const url = await prisma.shortUrl.findUnique({
+    // Allow creator or admin roles to edit
+    const canEdit = url.createdBy === req.user.userId || 
+                   ['SUPER_ADMIN', 'ADMIN'].includes(req.user.role);
+    
+    if (!canEdit) {
+      return res.status(403).json({ error: 'Permission denied. You can only edit URLs you created.' });
+    }
+
+    // Update URL
+    const updatedUrl = await prisma.shortUrl.update({
+      where: { id },
+      data: { destination }
+    });
+
+    // Return the updated URL with analytics
+    const urlWithCount = await prisma.shortUrl.findUnique({
       where: { id },
       include: {
         _count: {
@@ -280,12 +325,12 @@ router.put('/:id', async (req, res) => {
     });
 
     res.json({
-      id: url.id,
-      slug: url.slug,
-      destination: url.destination,
-      createdAt: url.createdAt,
-      clickCount: url._count.clicks,
-      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${url.slug}`
+      id: urlWithCount.id,
+      slug: urlWithCount.slug,
+      destination: urlWithCount.destination,
+      createdAt: urlWithCount.createdAt,
+      clickCount: urlWithCount._count.clicks,
+      shortUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/${urlWithCount.slug}`
     });
   } catch (error) {
     console.error('Update URL error:', error);
@@ -302,16 +347,27 @@ router.delete('/:id', async (req, res) => {
   const prisma = req.app.get('prisma');
 
   try {
-    const deletedUrl = await prisma.shortUrl.deleteMany({
-      where: {
-        id,
-        createdBy: req.user.userId
-      }
+    // Check if URL exists and if user has permission to delete it
+    const url = await prisma.shortUrl.findUnique({
+      where: { id },
+      include: { user: true }
     });
 
-    if (deletedUrl.count === 0) {
+    if (!url) {
       return res.status(404).json({ error: 'URL not found' });
     }
+
+    // Allow creator or admin roles to delete
+    const canDelete = url.createdBy === req.user.userId || 
+                     ['SUPER_ADMIN', 'ADMIN'].includes(req.user.role);
+    
+    if (!canDelete) {
+      return res.status(403).json({ error: 'Permission denied. You can only delete URLs you created.' });
+    }
+
+    await prisma.shortUrl.delete({
+      where: { id }
+    });
 
     res.json({ message: 'URL deleted successfully' });
   } catch (error) {

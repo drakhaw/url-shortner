@@ -5,8 +5,6 @@ require('dotenv').config();
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seeding...');
-
   const defaultEmail = process.env.DEFAULT_ADMIN_EMAIL || 'admin@example.com';
   const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
 
@@ -16,7 +14,6 @@ async function main() {
   });
 
   if (existingUser) {
-    console.log(`ℹ️  Admin user with email ${defaultEmail} already exists`);
     return;
   }
 
@@ -34,19 +31,12 @@ async function main() {
     }
   });
 
-  console.log(`✅ Created super admin user:`);
-  console.log(`   Email: ${adminUser.email}`);
-  console.log(`   Name: ${adminUser.name}`);
-  console.log(`   Role: ${adminUser.role}`);
-  console.log(`   Password: ${defaultPassword}`);
-  console.log(`   Must update password: ${adminUser.mustUpdate}`);
-  console.log('🌱 Database seeding completed successfully!');
+  console.log(`Created super admin user: ${adminUser.email}`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Database seeding failed:');
-    console.error(e);
+    console.error('Database seeding failed:', e.message);
     process.exit(1);
   })
   .finally(async () => {

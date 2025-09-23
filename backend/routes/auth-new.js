@@ -15,6 +15,17 @@ router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=oauth_failed` }),
   async (req, res) => {
     try {
+      if (!req.user) {
+        console.error('No user found in OAuth callback');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_user_found`);
+      }
+
+      // Check if user is active
+      if (!req.user.isActive) {
+        console.error('User account is inactive:', req.user.email);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=account_inactive`);
+      }
+
       // Generate JWT for the user
       const token = generateToken({
         userId: req.user.id,
@@ -266,6 +277,64 @@ router.patch('/users/:id/toggle-active', authenticateToken, requireRole(['SUPER_
     });
   } catch (error) {
     console.error('Toggle user active error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete user (admin only)
+router.delete('/users/:id', authenticateToken, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+  const { id } = req.params;
+  const prisma = req.app.get('prisma');
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        shortUrls: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent deleting yourself
+    if (user.id === req.user.userId) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    // Only super admin can delete other admins
+    if (user.role !== 'USER' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Only super admin can delete admin accounts' });
+    }
+
+    // Check if user has created URLs
+    if (user.shortUrls.length > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete user who has created ${user.shortUrls.length} URL(s). Please transfer or delete their URLs first.`,
+        hasUrls: true,
+        urlCount: user.shortUrls.length
+      });
+    }
+
+    // Delete the user
+    await prisma.user.delete({
+      where: { id }
+    });
+
+    res.json({
+      message: 'User deleted successfully',
+      deletedUser: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
