@@ -25,15 +25,14 @@ export const ThemeProvider = ({ children }) => {
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       return systemPrefersDark;
     } catch (error) {
-      console.error('Error initializing theme:', error);
-      return false; // Default to light theme on error
+      // Silently fallback to light theme on error
+      return false;
     }
   });
 
   useEffect(() => {
     // Ensure we're in a browser environment
     if (typeof window === 'undefined' || typeof document === 'undefined') {
-      console.warn('ThemeContext: Not in browser environment');
       return;
     }
     
@@ -50,7 +49,7 @@ export const ThemeProvider = ({ children }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error updating theme:', error);
+      // Silently handle theme update errors
     }
   }, [isDark]);
 

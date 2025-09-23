@@ -11,13 +11,6 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      console.log('Google OAuth profile:', {
-        id: profile.id,
-        email: profile.emails[0]?.value,
-        name: profile.displayName,
-        avatar: profile.photos[0]?.value
-      });
-
       // Check if user exists with this Google ID
       let user = await prisma.user.findUnique({
         where: { googleId: profile.id }
