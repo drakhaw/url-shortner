@@ -83,7 +83,7 @@ const LoginPage = () => {
           <Link className="w-12 h-12 text-blue-600 dark:text-blue-400" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Sign in to URL Shortener
+          Sign in to LinkShort
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           Sign in with Google to get started
