@@ -20,34 +20,6 @@ function authenticateToken(req, res, next) {
   }
 }
 
-/**
- * Middleware to check if user must update their password
- */
-async function checkMustUpdate(req, res, next) {
-  const prisma = req.app.get('prisma');
-  
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      select: { mustUpdate: true }
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    if (user.mustUpdate && req.path !== '/change-password') {
-      return res.status(403).json({ 
-        error: 'Password update required',
-        mustUpdate: true
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-}
 
 // Role-based access control middleware
 const requireRole = (allowedRoles) => {
@@ -79,6 +51,5 @@ const requireRole = (allowedRoles) => {
 
 module.exports = {
   authenticateToken,
-  checkMustUpdate,
   requireRole
 };

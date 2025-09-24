@@ -1,12 +1,11 @@
 const express = require('express');
-const { authenticateToken, checkMustUpdate } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { generateSlug, isValidSlug } = require('../utils/slug');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes
 router.use(authenticateToken);
-router.use(checkMustUpdate);
 
 /**
  * POST /urls

@@ -63,11 +63,8 @@ const DashboardPage = () => {
   });
 
   useEffect(() => {
-    if (isAuthenticated && user && !user.mustUpdate) {
+    if (isAuthenticated && user) {
       fetchUrls();
-    } else if (isAuthenticated && user && user.mustUpdate) {
-      // User needs to update password, will be redirected
-      setLoading(false);
     } else if (!isAuthenticated) {
       // Not authenticated, will be redirected
       setLoading(false);
@@ -78,7 +75,7 @@ const DashboardPage = () => {
   // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isAuthenticated && user && !user.mustUpdate) {
+      if (isAuthenticated && user) {
         fetchUrls();
       }
     }, 300);
@@ -224,9 +221,6 @@ const DashboardPage = () => {
     );
   }
 
-  if (user.mustUpdate) {
-    return <Navigate to="/change-password" replace />;
-  }
 
   // Show loading while fetching URLs
   if (loading) {

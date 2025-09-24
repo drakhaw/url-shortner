@@ -38,7 +38,7 @@ const AnalyticsPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isAuthenticated && user && !user.mustUpdate) {
+    if (isAuthenticated && user) {
       fetchAnalytics();
     }
   }, [id, isAuthenticated, user]);
@@ -64,9 +64,6 @@ const AnalyticsPage = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.mustUpdate) {
-    return <Navigate to="/change-password" replace />;
-  }
 
   if (loading) {
     return (

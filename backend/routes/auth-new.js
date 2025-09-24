@@ -62,7 +62,6 @@ router.get('/me', authenticateToken, async (req, res) => {
         name: true,
         avatar: true,
         role: true,
-        mustUpdate: true,
         isActive: true,
         createdAt: true,
         lastLoginAt: true
