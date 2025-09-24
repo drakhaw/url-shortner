@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
-import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import OAuthCallback from './pages/OAuthCallback';
 import RedirectHandler from './components/RedirectHandler';
@@ -31,7 +30,6 @@ function App() {
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/change-password" element={<ChangePasswordPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/users" element={<UserManagement />} />
                 <Route path="/auth/callback" element={<OAuthCallback />} />

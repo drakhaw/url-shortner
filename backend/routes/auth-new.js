@@ -1,6 +1,5 @@
 const express = require('express');
 const passport = require('../config/passport');
-const { hashPassword, comparePassword } = require('../utils/password');
 const { generateToken } = require('../utils/jwt');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
@@ -49,64 +48,6 @@ router.get('/google/callback',
   }
 );
 
-// Legacy login for super admin (will be removed later)
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const prisma = req.app.get('prisma');
-
-  try {
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    // Find user - only allow super admin to use legacy login
-    const user = await prisma.user.findUnique({
-      where: { 
-        email: email.toLowerCase(),
-        role: 'SUPER_ADMIN'
-      }
-    });
-
-    if (!user || !user.password) {
-      return res.status(401).json({ error: 'Invalid credentials or account requires Google login' });
-    }
-
-    // Verify password
-    const isValidPassword = await comparePassword(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate token
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role
-    });
-
-    // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    });
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        mustUpdate: user.mustUpdate
-      }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 // Get current user info
 router.get('/me', authenticateToken, async (req, res) => {

@@ -251,7 +251,7 @@ const DashboardPage = () => {
                   </RouterLink>
                 )}
                 <ThemeToggle />
-                <span className="text-sm text-gray-500 dark:text-gray-400">Welcome, {user?.email}</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">Welcome, {user?.name || user?.email}</span>
                 <button
                   onClick={logout}
                   className="flex items-center text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"

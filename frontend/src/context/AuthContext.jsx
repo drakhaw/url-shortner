@@ -81,49 +81,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [state.loading]);
 
-  const login = async (email, password) => {
-    try {
-      dispatch({ type: 'LOADING' });
-      const response = await authApi.login(email, password);
-      const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { token, user },
-      });
-      
-      return { success: true, user };
-    } catch (error) {
-      const message = error.response?.data?.error || 'Login failed';
-      dispatch({ type: 'ERROR', payload: message });
-      return { success: false, error: message };
-    }
-  };
-
-  const changePassword = async (newEmail, newPassword) => {
-    try {
-      dispatch({ type: 'LOADING' });
-      const response = await authApi.changePassword(newEmail, newPassword);
-      const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: { token, user },
-      });
-      
-      return { success: true, user };
-    } catch (error) {
-      const message = error.response?.data?.error || 'Password change failed';
-      dispatch({ type: 'ERROR', payload: message });
-      return { success: false, error: message };
-    }
-  };
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -147,8 +104,6 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     ...state,
-    login,
-    changePassword,
     logout,
     clearError,
     setAuthData,

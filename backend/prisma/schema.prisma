@@ -27,9 +27,6 @@ model User {
   createdAt   DateTime @default(now()) @map("created_at")
   lastLoginAt DateTime? @map("last_login_at")
   
-  // Legacy password field (will be nullable for OAuth users)
-  password    String?
-  mustUpdate  Boolean  @default(false) @map("must_update")
   
   shortUrls   ShortUrl[]
   
