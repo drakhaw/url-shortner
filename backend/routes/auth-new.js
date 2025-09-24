@@ -195,30 +195,53 @@ router.post('/invite-user', authenticateToken, requireRole(['SUPER_ADMIN', 'ADMI
 router.get('/users', authenticateToken, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
   const prisma = req.app.get('prisma');
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 20;
+  const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
+  const search = req.query.search || '';
 
   try {
-    const users = await prisma.user.findMany({
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        lastLoginAt: true,
-        _count: {
-          select: { shortUrls: true }
+    // Build search conditions
+    const whereConditions = search.trim() ? {
+      OR: [
+        {
+          email: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive'
+          }
         }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+      ]
+    } : {};
 
-    const total = await prisma.user.count();
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatar: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          lastLoginAt: true,
+          _count: {
+            select: { shortUrls: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({
+        where: whereConditions
+      })
+    ]);
 
     res.json({
       users,

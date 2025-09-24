@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { userApi } from '../services/api';
 import { 
   Users, 
   UserPlus, 
@@ -21,6 +22,10 @@ import {
   Trash2
 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
+import ConfirmationModal from '../components/ConfirmationModal';
+import NotificationModal from '../components/NotificationModal';
+import Pagination from '../components/Pagination';
+import ItemsPerPageSelector from '../components/ItemsPerPageSelector';
 
 const UserManagement = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -29,35 +34,59 @@ const UserManagement = () => {
   const [inviting, setInviting] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [notification, setNotification] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     role: 'USER'
+  });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  
+  // Modal states
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    type: 'warning'
+  });
+  const [notificationModal, setNotificationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'success'
   });
 
   useEffect(() => {
     if (isAuthenticated && user && ['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
       fetchUsers();
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, currentPage, itemsPerPage]);
+  
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAuthenticated && user && ['SUPER_ADMIN', 'ADMIN'].includes(user.role)) {
+        fetchUsers();
+      }
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/auth/users`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users);
-      } else {
-        throw new Error('Failed to fetch users');
-      }
+      setLoading(true);
+      const response = await userApi.list(currentPage, itemsPerPage, searchQuery);
+      setUsers(response.data.users);
+      setTotalPages(response.data.pagination.pages);
+      setTotalItems(response.data.pagination.total);
     } catch (error) {
       console.error('Error fetching users:', error);
-      showNotification('Failed to load users', 'error');
+      showNotificationModal('Error', 'Failed to load users', 'error');
     } finally {
       setLoading(false);
     }
@@ -69,91 +98,118 @@ const UserManagement = () => {
 
     setInviting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/auth/invite-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(prev => [data.user, ...prev]);
-        setFormData({ email: '', role: 'USER' });
-        setShowInviteForm(false);
-        showNotification('User invited successfully', 'success');
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to invite user');
-      }
+      const response = await userApi.invite(formData.email, formData.role);
+      setUsers(prev => [response.data.user, ...prev]);
+      setFormData({ email: '', role: 'USER' });
+      setShowInviteForm(false);
+      showNotificationModal('Success', 'User invited successfully', 'success');
+      // Refresh the list to get updated pagination
+      fetchUsers();
     } catch (error) {
       console.error('Error inviting user:', error);
-      showNotification(error.message, 'error');
+      const message = error.response?.data?.error || 'Failed to invite user';
+      showNotificationModal('Error', message, 'error');
     } finally {
       setInviting(false);
     }
   };
 
-  const handleToggleUserStatus = async (userId) => {
+  const handleToggleUserStatus = (userId, userEmail, isActive) => {
+    const action = isActive ? 'deactivate' : 'activate';
+    setConfirmationModal({
+      isOpen: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} User`,
+      message: `Are you sure you want to ${action} "${userEmail}"?`,
+      type: 'warning',
+      onConfirm: () => confirmToggleUserStatus(userId)
+    });
+  };
+  
+  const confirmToggleUserStatus = async (userId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/auth/users/${userId}/toggle-active`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: data.user.isActive } : u));
-        showNotification(data.message, 'success');
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to update user status');
-      }
+      const response = await userApi.toggleActive(userId);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: response.data.user.isActive } : u));
+      showNotificationModal('Success', response.data.message, 'success');
     } catch (error) {
       console.error('Error updating user status:', error);
-      showNotification(error.message, 'error');
+      const message = error.response?.data?.error || 'Failed to update user status';
+      showNotificationModal('Error', message, 'error');
+    } finally {
+      setConfirmationModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
-  const handleDeleteUser = async (userId, userEmail) => {
-    if (!confirm(`Are you sure you want to permanently delete user "${userEmail}"? This action cannot be undone.`)) {
-      return;
-    }
-
+  const handleDeleteUser = (userId, userEmail) => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Delete User',
+      message: `Are you sure you want to permanently delete user "${userEmail}"? This action cannot be undone.`,
+      type: 'danger',
+      onConfirm: () => confirmDeleteUser(userId)
+    });
+  };
+  
+  const confirmDeleteUser = async (userId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/auth/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(prev => prev.filter(u => u.id !== userId));
-        showNotification(data.message, 'success');
+      const response = await userApi.delete(userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      showNotificationModal('Success', response.data.message, 'success');
+      // If this was the last item on the page, go to previous page
+      if (users.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
       } else {
-        const error = await response.json();
-        if (error.hasUrls) {
-          showNotification(`Cannot delete user: ${error.error}`, 'error');
-        } else {
-          throw new Error(error.error || 'Failed to delete user');
-        }
+        fetchUsers();
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      showNotification(error.message, 'error');
+      const errorData = error.response?.data;
+      if (errorData?.hasUrls) {
+        showNotificationModal('Error', `Cannot delete user: ${errorData.error}`, 'error');
+      } else {
+        const message = errorData?.error || 'Failed to delete user';
+        showNotificationModal('Error', message, 'error');
+      }
+    } finally {
+      setConfirmationModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+  // Modal helper functions
+  const showNotificationModal = (title, message, type = 'success') => {
+    setNotificationModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
   };
+  
+  const closeNotificationModal = () => {
+    setNotificationModal(prev => ({ ...prev, isOpen: false }));
+  };
+  
+  const closeConfirmationModal = () => {
+    setConfirmationModal(prev => ({ ...prev, isOpen: false }));
+  };
+  
+  // Pagination handler
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Search handler
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+  
+  // Items per page change handler
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+  
 
   const getRoleIcon = (role) => {
     switch (role) {
@@ -181,10 +237,9 @@ const UserManagement = () => {
     );
   };
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Note: With server-side pagination, we show all users from current page
+  // Search functionality would need to be implemented server-side
+  const filteredUsers = users;
 
   // Redirect if not authenticated or not admin
   if (!isAuthenticated) {
@@ -229,47 +284,53 @@ const UserManagement = () => {
         </div>
       </header>
 
-      {/* Notification */}
-      {notification && (
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4`}>
-          <div className={`flex items-center p-4 rounded-md ${
-            notification.type === 'success' 
-              ? 'bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-200' 
-              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-200'
-          }`}>
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 mr-2" />
-            ) : (
-              <AlertCircle className="w-5 h-5 mr-2" />
-            )}
-            {notification.message}
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Actions Bar */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex-1 max-w-lg">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex-1 max-w-lg">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => setShowInviteForm(!showInviteForm)}
+              className="flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Invite User
+            </button>
+          </div>
+          
+          {/* Filters and Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <ItemsPerPageSelector
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+            />
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {searchQuery && (
+                <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
+                  Searching: "{searchQuery}"
+                  <button
+                    onClick={() => handleSearchChange('')}
+                    className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
             </div>
           </div>
-          <button
-            onClick={() => setShowInviteForm(!showInviteForm)}
-            className="flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Invite User
-          </button>
         </div>
 
         {/* Invite Form */}
@@ -413,7 +474,7 @@ const UserManagement = () => {
                         {u.id !== user.id && u.role !== 'SUPER_ADMIN' && (
                           <>
                             <button
-                              onClick={() => handleToggleUserStatus(u.id)}
+                              onClick={() => handleToggleUserStatus(u.id, u.email, u.isActive)}
                               className={`text-sm px-3 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                                 u.isActive
                                   ? 'border-red-300 dark:border-red-600 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900'
@@ -440,8 +501,35 @@ const UserManagement = () => {
               ))}
             </div>
           )}
+          
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+          />
         </div>
       </main>
+      
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        type={confirmationModal.type}
+      />
+      
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        onClose={closeNotificationModal}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+      />
     </div>
   );
 };

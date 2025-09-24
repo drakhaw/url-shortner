@@ -132,12 +132,32 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   const prisma = req.app.get('prisma');
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
+  const search = req.query.search || '';
 
   try {
+    // Build search conditions
+    const whereConditions = search.trim() ? {
+      OR: [
+        {
+          slug: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          destination: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        }
+      ]
+    } : {};
+
     const [urls, totalCount] = await Promise.all([
       prisma.shortUrl.findMany({
+        where: whereConditions,
         include: {
           user: {
             select: {
@@ -160,7 +180,9 @@ router.get('/', async (req, res) => {
         skip,
         take: limit
       }),
-      prisma.shortUrl.count()
+      prisma.shortUrl.count({
+        where: whereConditions
+      })
     ]);
 
     const formattedUrls = urls.map(url => ({

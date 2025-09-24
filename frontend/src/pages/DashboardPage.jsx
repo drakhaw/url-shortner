@@ -4,6 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { urlApi } from '../services/api';
 import ThemeToggle from '../components/ThemeToggle';
+import ConfirmationModal from '../components/ConfirmationModal';
+import NotificationModal from '../components/NotificationModal';
+import Pagination from '../components/Pagination';
+import ItemsPerPageSelector from '../components/ItemsPerPageSelector';
 import { 
   Plus, 
   Link as LinkIcon, 
@@ -18,7 +22,8 @@ import {
   AlertCircle,
   Users,
   Settings,
-  User
+  User,
+  Search
 } from 'lucide-react';
 
 const DashboardPage = () => {
@@ -33,8 +38,29 @@ const DashboardPage = () => {
     destination: '',
     customSlug: ''
   });
-  const [notification, setNotification] = useState(null);
   const [editingUrl, setEditingUrl] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  
+  // Modal states
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    type: 'warning'
+  });
+  const [notificationModal, setNotificationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'success'
+  });
 
   useEffect(() => {
     if (isAuthenticated && user && !user.mustUpdate) {
@@ -47,14 +73,29 @@ const DashboardPage = () => {
       setLoading(false);
     }
     // If isAuthenticated is true but user is null, keep loading
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, currentPage, itemsPerPage]);
+  
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isAuthenticated && user && !user.mustUpdate) {
+        fetchUrls();
+      }
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchUrls = async () => {
     try {
-      const response = await urlApi.list(1, 20);
+      setLoading(true);
+      const response = await urlApi.list(currentPage, itemsPerPage, searchQuery);
       setUrls(response.data.urls);
+      setTotalPages(response.data.pagination.pages);
+      setTotalItems(response.data.pagination.total);
     } catch (error) {
       console.error('Failed to fetch URLs:', error);
+      showNotificationModal('Error', 'Failed to load URLs', 'error');
     } finally {
       setLoading(false);
     }
@@ -74,10 +115,10 @@ const DashboardPage = () => {
       setUrls(prev => [response.data, ...prev]);
       setFormData({ destination: '', customSlug: '' });
       setShowCreateForm(false);
-      showNotification('Short URL created successfully!', 'success');
+      showNotificationModal('Success', 'Short URL created successfully!', 'success');
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to create short URL';
-      showNotification(message, 'error');
+      showNotificationModal('Error', message, 'error');
     } finally {
       setCreating(false);
     }
@@ -85,19 +126,35 @@ const DashboardPage = () => {
 
   const handleCopyUrl = (shortUrl) => {
     navigator.clipboard.writeText(shortUrl);
-    showNotification('URL copied to clipboard!', 'success');
+    showNotificationModal('Success', 'URL copied to clipboard!', 'success');
   };
 
-  const handleDeleteUrl = async (id) => {
-    if (!confirm('Are you sure you want to delete this URL?')) return;
-
+  const handleDeleteUrl = (id, shortUrl) => {
+    setConfirmationModal({
+      isOpen: true,
+      title: 'Delete URL',
+      message: `Are you sure you want to delete "${shortUrl}"? This action cannot be undone.`,
+      type: 'danger',
+      onConfirm: () => confirmDeleteUrl(id)
+    });
+  };
+  
+  const confirmDeleteUrl = async (id) => {
     try {
       await urlApi.delete(id);
       setUrls(prev => prev.filter(url => url.id !== id));
-      showNotification('URL deleted successfully!', 'success');
+      showNotificationModal('Success', 'URL deleted successfully!', 'success');
+      // If this was the last item on the page, go to previous page
+      if (urls.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+      } else {
+        fetchUrls();
+      }
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to delete URL';
-      showNotification(message, 'error');
+      showNotificationModal('Error', message, 'error');
+    } finally {
+      setConfirmationModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -108,16 +165,47 @@ const DashboardPage = () => {
         url.id === id ? { ...url, destination: response.data.destination } : url
       ));
       setEditingUrl(null);
-      showNotification('URL updated successfully!', 'success');
+      showNotificationModal('Success', 'URL updated successfully!', 'success');
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to update URL';
-      showNotification(message, 'error');
+      showNotificationModal('Error', message, 'error');
     }
   };
-
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+  
+  // Modal helper functions
+  const showNotificationModal = (title, message, type = 'success') => {
+    setNotificationModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+  
+  const closeNotificationModal = () => {
+    setNotificationModal(prev => ({ ...prev, isOpen: false }));
+  };
+  
+  const closeConfirmationModal = () => {
+    setConfirmationModal(prev => ({ ...prev, isOpen: false }));
+  };
+  
+  // Pagination handler
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Items per page change handler
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+  
+  // Search handler
+  const handleSearchChange = (value) => {
+    setSearchQuery(value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   if (!isAuthenticated) {
@@ -219,23 +307,6 @@ const DashboardPage = () => {
         </div>
       </header>
 
-      {/* Notification */}
-      {notification && (
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4`}>
-          <div className={`flex items-center p-4 rounded-md ${
-            notification.type === 'success' 
-              ? 'bg-green-50 dark:bg-green-900 text-green-700 dark:text-green-300' 
-              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300'
-          }`}>
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 mr-2" />
-            ) : (
-              <AlertCircle className="w-5 h-5 mr-2" />
-            )}
-            {notification.message}
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -307,8 +378,42 @@ const DashboardPage = () => {
 
         {/* URLs List */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">All Short URLs</h2>
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">All Short URLs</h2>
+              <ItemsPerPageSelector
+                value={itemsPerPage}
+                onChange={handleItemsPerPageChange}
+                options={[5, 10, 15, 20, 50]}
+              />
+            </div>
+            
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex-1 max-w-md">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search URLs by slug or destination..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              {searchQuery && (
+                <span className="text-sm bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
+                  Searching: "{searchQuery}"
+                  <button
+                    onClick={() => handleSearchChange('')}
+                    className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )}
+            </div>
           </div>
           
           {urls.length === 0 ? (
@@ -419,7 +524,7 @@ const DashboardPage = () => {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteUrl(url.id)}
+                              onClick={() => handleDeleteUrl(url.id, url.shortUrl)}
                               className="text-red-400 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
                               title="Delete URL"
                               aria-label="Delete URL permanently"
@@ -435,8 +540,37 @@ const DashboardPage = () => {
               ))}
             </div>
           )}
+          
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={handlePageChange}
+          />
         </div>
       </main>
+      
+      {/* Modals */}
+      <ConfirmationModal
+        isOpen={confirmationModal.isOpen}
+        onClose={closeConfirmationModal}
+        onConfirm={confirmationModal.onConfirm}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        type={confirmationModal.type}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
+      
+      <NotificationModal
+        isOpen={notificationModal.isOpen}
+        onClose={closeNotificationModal}
+        title={notificationModal.title}
+        message={notificationModal.message}
+        type={notificationModal.type}
+      />
     </div>
   );
 };

@@ -51,12 +51,24 @@ export const authApi = {
 export const urlApi = {
   create: (destination, customSlug) => 
     api.post('/urls', { destination, customSlug }),
-  list: (page = 1, limit = 10) => 
-    api.get('/urls', { params: { page, limit } }),
+  list: (page = 1, limit = 5, search = '') => 
+    api.get('/urls', { params: { page, limit, search } }),
   get: (id) => api.get(`/urls/${id}`),
   update: (id, destination) => 
     api.put(`/urls/${id}`, { destination }),
   delete: (id) => api.delete(`/urls/${id}`),
+};
+
+// User API
+export const userApi = {
+  list: (page = 1, limit = 5, search = '') => 
+    api.get('/auth/users', { params: { page, limit, search } }),
+  invite: (email, role) => 
+    api.post('/auth/invite-user', { email, role }),
+  toggleActive: (userId) => 
+    api.patch(`/auth/users/${userId}/toggle-active`),
+  delete: (userId) => 
+    api.delete(`/auth/users/${userId}`),
 };
 
 export default api;
